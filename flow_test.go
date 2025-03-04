@@ -24,7 +24,7 @@ func TestInitAndFlow(t *testing.T) {
 		})
 	}
 
-	streams := Init(middleware1)
+	streams := New(middleware1)
 	streams.Extend(middleware2, middleware1)
 	streams.Reduce(2)
 
@@ -125,7 +125,7 @@ func TestSingleMiddlewareFlow(t *testing.T) {
 		})
 	}
 
-	streams := Init(middleware)
+	streams := New(middleware)
 
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

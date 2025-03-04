@@ -19,7 +19,7 @@ type Streams []Middleware
 
 // Flow Option
 type Opt struct {
-	exclude []int
+	Exclude []int
 }
 
 // Initialize new Flow Instance
@@ -43,7 +43,7 @@ func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt
 	if opt != nil {
 		if len(s) > 1 {
 			for i, middleware := range reverse(s) {
-				for _, index := range opt.exclude {
+				for _, index := range opt.Exclude {
 					if i == index {
 						continue
 					} else {
@@ -52,7 +52,7 @@ func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt
 				}
 			}
 		} else {
-			for _, index := range opt.exclude {
+			for _, index := range opt.Exclude {
 				if index == 0 {
 					continue
 				} else {
