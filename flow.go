@@ -1,24 +1,28 @@
 package flow
 
 import (
+	"fmt"
 	"net/http"
+	"sort"
 )
 
-/*TODO:
-- Create Init function for Flow Instance
-- Create Flow method for Flow Instance which accept a specified handler as the arg
-- and then start flowing it thru all the middlewares registered in Init function
-- Make the test
-*/
-
+// This is a type for Middleware
 type Middleware func(http.Handler) http.Handler
 
+// This is a type for Flow Instance
 type FlowHandler struct {
 	Handler http.Handler
 }
 
+// This is a type for multiple middewares
 type Streams []Middleware
 
+// Flow Option
+type Opt struct {
+	exclude []int
+}
+
+// Initialize new Flow Instance
 func Init(middlewares ...Middleware) Streams {
 	streams := make(Streams, 0)
 	if len(middlewares) > 0 {
@@ -30,25 +34,80 @@ func Init(middlewares ...Middleware) Streams {
 	return streams
 }
 
-func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request)) {
+// Execute Flow Instance
+func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt) {
 	fh := FlowHandler{
 		Handler: http.HandlerFunc(handler),
 	}
-	if len(s) > 1 {
-		for _, m := range reverse(s) {
-			fh.Handler = useMiddleware(fh.Handler, m)
+
+	if opt != nil {
+		if len(s) > 1 {
+			for i, middleware := range reverse(s) {
+				for _, index := range opt.exclude {
+					if i == index {
+						continue
+					} else {
+						fh.Handler = useMiddleware(fh.Handler, middleware)
+					}
+				}
+			}
+		} else {
+			for _, index := range opt.exclude {
+				if index == 0 {
+					continue
+				} else {
+					fh.Handler = useMiddleware(fh.Handler, s[0])
+				}
+			}
 		}
 	} else {
-		fh.Handler = useMiddleware(fh.Handler, s[0])
+		if len(s) > 1 {
+			for _, m := range reverse(s) {
+				fh.Handler = useMiddleware(fh.Handler, m)
+			}
+		} else {
+			fh.Handler = useMiddleware(fh.Handler, s[0])
+		}
 	}
 }
 
+// Extend new middleware(s) to existing Flow Instance
+func (s *Streams) Extend(middlewares ...Middleware) {
+	for _, middleware := range middlewares {
+		*s = append(*s, middleware)
+	}
+}
+
+// Reduce middleware(s) from existing Flow Instance
+func (s *Streams) Reduce(index ...int) {
+	if len(index) == 0 || len(*s) == 0 {
+		return
+	}
+
+	sort.Slice(index, func(i, j int) bool {
+		return index[i] > index[j]
+	})
+
+	for _, index := range index {
+		if index >= 0 && index < len(*s) {
+			*s = append((*s)[:index], (*s)[index+1:]...)
+		}
+	}
+}
+
+// Print middlewares length of existing Flow Instance
+func (s *Streams) Show() {
+	fmt.Println(len(*s))
+}
+
+// Function to specifiying handler to pass into middleware(s)
 func Handle(handler func(http.ResponseWriter, *http.Request)) *FlowHandler {
 	return &FlowHandler{
 		Handler: http.HandlerFunc(handler),
 	}
 }
 
+// Lists all middleware(s) to be applied
 func (fh *FlowHandler) Thru(middlewares ...Middleware) http.Handler {
 	if len(middlewares) > 1 {
 		for _, middleware := range reverse(middlewares) {
@@ -60,10 +119,12 @@ func (fh *FlowHandler) Thru(middlewares ...Middleware) http.Handler {
 	return fh.Handler
 }
 
+// Activating middleware
 func useMiddleware(handler http.Handler, middleware Middleware) http.Handler {
 	return middleware(handler)
 }
 
+// Reversing order of middlewares
 func reverse(order []Middleware) []Middleware {
 	reversed := make([]Middleware, len(order))
 	for i := len(order) - 1; i >= 0; i-- {
