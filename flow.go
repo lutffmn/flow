@@ -4,10 +4,36 @@ import (
 	"net/http"
 )
 
+/*TODO:
+- Create Init function for Flow Instance
+- Create Flow method for Flow Instance which accept a specified handler as the arg
+- and then start flowing it thru all the middlewares registered in Init function
+- Make the test
+*/
+
 type Middleware func(http.Handler) http.Handler
 
 type FlowHandler struct {
 	Handler http.Handler
+}
+
+type Streams []Middleware
+
+func Init(middlewares ...Middleware) *Streams {
+	streams := make(Streams, 0)
+	if len(middlewares) > 1 {
+		for _, middleware := range middlewares {
+			streams = append(streams, middleware)
+		}
+	}
+
+	return &streams
+}
+
+func (s *Streams) Flow(handler func(http.ResponseWriter, *http.Request)) {
+	if len(s) > 1 {
+
+	}
 }
 
 func Handle(handler func(http.ResponseWriter, *http.Request)) *FlowHandler {
