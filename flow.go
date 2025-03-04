@@ -19,20 +19,27 @@ type FlowHandler struct {
 
 type Streams []Middleware
 
-func Init(middlewares ...Middleware) *Streams {
+func Init(middlewares ...Middleware) Streams {
 	streams := make(Streams, 0)
-	if len(middlewares) > 1 {
-		for _, middleware := range middlewares {
-			streams = append(streams, middleware)
+	if len(middlewares) > 0 {
+		for _, m := range middlewares {
+			streams = append(streams, m)
 		}
 	}
 
-	return &streams
+	return streams
 }
 
-func (s *Streams) Flow(handler func(http.ResponseWriter, *http.Request)) {
+func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request)) {
+	fh := FlowHandler{
+		Handler: http.HandlerFunc(handler),
+	}
 	if len(s) > 1 {
-
+		for _, m := range reverse(s) {
+			fh.Handler = useMiddleware(fh.Handler, m)
+		}
+	} else {
+		fh.Handler = useMiddleware(fh.Handler, s[0])
 	}
 }
 

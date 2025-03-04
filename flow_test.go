@@ -3,50 +3,93 @@ package flow
 import (
 	"fmt"
 	"net/http"
-	"reflect"
+	"net/http/httptest"
 	"testing"
 )
 
-func TestHandle(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-	}
-
-	fh := Handle(handler)
-
-	if fh == nil {
-		t.Errorf("Handle returned nil")
-	}
-
-	if fh.Handler == nil {
-		t.Errorf("Handler field is nil")
-	}
-}
-
-func TestThru(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-	}
-
-	fh := Handle(handler)
+func TestInitAndFlow(t *testing.T) {
+	var middleware1Called, middleware2Called bool
 
 	middleware1 := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middleware1Called = true
 			next.ServeHTTP(w, r)
 		})
 	}
 
 	middleware2 := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middleware2Called = true
 			next.ServeHTTP(w, r)
 		})
 	}
 
-	result := fh.Thru(middleware1, middleware2)
+	streams := Init(middleware1)
+	streams.Extend(middleware2, middleware1)
+	streams.Reduce(2)
 
-	left := reflect.ValueOf(result)
-	right := reflect.ValueOf(fh.Handler)
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
 
-	if !reflect.DeepEqual(left.Pointer(), right.Pointer()) {
-		t.Errorf("result %v\twant %v", result, fh.Handler)
+	streams.Flow(handlerFunc, nil)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	streams[0](streams[1](http.HandlerFunc(handlerFunc))).ServeHTTP(w, req)
+
+	if !middleware1Called {
+		t.Error("Middleware 1 was not called")
+	}
+
+	if !middleware2Called {
+		t.Error("Middleware 2 was not called")
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+func TestHandleAndThru(t *testing.T) {
+	var middleware1Called, middleware2Called bool
+
+	middleware1 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middleware1Called = true
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	middleware2 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middleware2Called = true
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	flowHandler := Handle(handlerFunc).Thru(middleware1, middleware2)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	flowHandler.ServeHTTP(w, req)
+
+	if !middleware1Called {
+		t.Error("Middleware 1 was not called")
+	}
+
+	if !middleware2Called {
+		t.Error("Middleware 2 was not called")
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
 	}
 }
 
@@ -69,5 +112,67 @@ func TestReverse(t *testing.T) {
 		if fmt.Sprintf("%v", middleware) != fmt.Sprintf("%v", right[i]) {
 			t.Errorf("left: %v\tright: %v\n", left, right)
 		}
+	}
+}
+
+func TestSingleMiddlewareFlow(t *testing.T) {
+	var middlewareCalled bool
+
+	middleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middlewareCalled = true
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	streams := Init(middleware)
+
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	streams.Flow(handlerFunc, nil)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	streams[0](http.HandlerFunc(handlerFunc)).ServeHTTP(w, req)
+
+	if !middlewareCalled {
+		t.Error("Middleware was not called")
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+func TestSingleMiddlewareThru(t *testing.T) {
+	var middlewareCalled bool
+
+	middleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middlewareCalled = true
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	flowHandler := Handle(handlerFunc).Thru(middleware)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	flowHandler.ServeHTTP(w, req)
+
+	if !middlewareCalled {
+		t.Error("Middleware was not called")
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
 	}
 }
