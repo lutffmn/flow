@@ -23,7 +23,7 @@ type Opt struct {
 }
 
 // Initialize new Flow Instance
-func Init(middlewares ...Middleware) Streams {
+func New(middlewares ...Middleware) Streams {
 	streams := make(Streams, 0)
 	if len(middlewares) > 0 {
 		for _, m := range middlewares {
