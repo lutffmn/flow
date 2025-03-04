@@ -35,7 +35,7 @@ func New(middlewares ...Middleware) Streams {
 }
 
 // Execute Flow Instance
-func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt) {
+func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt) http.Handler {
 	fh := FlowHandler{
 		Handler: http.HandlerFunc(handler),
 	}
@@ -69,6 +69,8 @@ func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt
 			fh.Handler = useMiddleware(fh.Handler, s[0])
 		}
 	}
+
+	return fh.Handler
 }
 
 // Extend new middleware(s) to existing Flow Instance
