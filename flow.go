@@ -36,18 +36,25 @@ func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), exclude 
 	}
 
 	if len(exclude) > 0 && len(s) > 1 {
-		for _, v := range exclude {
-			for i, middleware := range reverse(s) {
-				if v != i {
-					fh.Handler = useMiddleware(fh.Handler, middleware)
+		for i, middleware := range reverse(s) {
+			exc := false
+			for _, n := range exclude {
+				if i == n {
+					exc = true
+					break
 				}
 			}
+			if !exc {
+				fh.Handler = useMiddleware(fh.Handler, middleware)
+			}
 		}
-	} else if len(s) > 1 {
+	} else if len(exclude) > 0 && len(s) == 1 {
+		fh.Handler = useMiddleware(fh.Handler, s[0])
+	} else if len(exclude) <= 0 && len(s) > 1 {
 		for _, m := range reverse(s) {
 			fh.Handler = useMiddleware(fh.Handler, m)
 		}
-	} else if len(s) == 1 {
+	} else if len(exclude) <= 0 && len(s) == 1 {
 		fh.Handler = useMiddleware(fh.Handler, s[0])
 	}
 
