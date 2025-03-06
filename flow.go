@@ -17,11 +17,6 @@ type FlowHandler struct {
 // This is a type for multiple middewares
 type Streams []Middleware
 
-// Flow Option
-type Opt struct {
-	Exclude []int
-}
-
 // Initialize new Flow Instance
 func New(middlewares ...Middleware) Streams {
 	streams := make(Streams, 0)
@@ -35,39 +30,25 @@ func New(middlewares ...Middleware) Streams {
 }
 
 // Execute Flow Instance
-func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), opt *Opt) http.Handler {
+func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), exclude ...int) http.Handler {
 	fh := FlowHandler{
 		Handler: http.HandlerFunc(handler),
 	}
 
-	if opt != nil {
-		if len(s) > 1 {
+	if len(exclude) > 0 && len(s) > 1 {
+		for _, v := range exclude {
 			for i, middleware := range reverse(s) {
-				for _, index := range opt.Exclude {
-					if i == index {
-						continue
-					} else {
-						fh.Handler = useMiddleware(fh.Handler, middleware)
-					}
-				}
-			}
-		} else {
-			for _, index := range opt.Exclude {
-				if index == 0 {
-					continue
-				} else {
-					fh.Handler = useMiddleware(fh.Handler, s[0])
+				if v != i {
+					fh.Handler = useMiddleware(fh.Handler, middleware)
 				}
 			}
 		}
-	} else {
-		if len(s) > 1 {
-			for _, m := range reverse(s) {
-				fh.Handler = useMiddleware(fh.Handler, m)
-			}
-		} else {
-			fh.Handler = useMiddleware(fh.Handler, s[0])
+	} else if len(s) > 1 {
+		for _, m := range reverse(s) {
+			fh.Handler = useMiddleware(fh.Handler, m)
 		}
+	} else if len(s) == 1 {
+		fh.Handler = useMiddleware(fh.Handler, s[0])
 	}
 
 	return fh.Handler

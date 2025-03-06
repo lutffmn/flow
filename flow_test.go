@@ -32,7 +32,7 @@ func TestInitAndFlow(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	streams.Flow(handlerFunc, nil)
+	streams.Flow(handlerFunc)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -131,7 +131,7 @@ func TestSingleMiddlewareFlow(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	streams.Flow(handlerFunc, nil)
+	streams.Flow(handlerFunc)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
