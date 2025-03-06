@@ -36,7 +36,7 @@ func (s Streams) Flow(handler func(http.ResponseWriter, *http.Request), exclude 
 	}
 
 	if len(exclude) > 0 && len(s) > 1 {
-		for i, middleware := range reverse(s) {
+		for i, middleware := range s {
 			exc := false
 			for _, n := range exclude {
 				if i == n {
